@@ -1,4 +1,4 @@
-import { UserData } from "../utilties/user";
+import { PublicUserData, UserData } from "../utilities/user";
 
 export type User = {
   email: string;
@@ -18,9 +18,9 @@ export class SendPin {
 }
 
 export class UserCreated {
-  readonly user: UserData;
+  readonly user: PublicUserData;
 
-  constructor(user: UserData) {
+  constructor(user: PublicUserData) {
     this.user = user;
   }
 }

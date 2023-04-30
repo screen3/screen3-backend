@@ -1,6 +1,6 @@
 import { USER_TYPES_ARRAY, UserTypes } from "../../constants/user";
 import { model, Schema } from "mongoose";
-import { UserData } from "../../utilties/user";
+import { UserData } from "../../utilities/user";
 
 export interface UserInterface {
   readonly id: string;
@@ -15,9 +15,9 @@ export interface UserInterface {
 
 const schema = new Schema<UserInterface>(
   {
-    firstname: String,
-    lastname: String,
-    email: { type: String, unique: true },
+    firstname: { type: String, sparse: true },
+    lastname: { type: String, sparse: true },
+    email: { type: String, unique: true, sparse: true },
     password: String,
     type: { type: String, enum: USER_TYPES_ARRAY },
   },
