@@ -9,11 +9,11 @@ export interface UserFinder {
   findUserById(id: string): Promise<AuthenticationUser>;
 }
 
-export interface JwtAuthMiddleware {
+export interface AuthMiddleware {
   middleware(role?: UserTypes): RequestHandler;
 }
 
-export default class JwtAuthenticator implements JwtAuthMiddleware {
+export default class JwtAuthenticator implements AuthMiddleware {
   private readonly expiresIn = 60 * 60 * 24;
 
   private readonly secretOrPrivateKey = ENCRYPTION_SECRET;
