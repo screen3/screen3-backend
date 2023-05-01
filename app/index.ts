@@ -13,6 +13,8 @@ import Cache, { RedisCache } from "./cache";
 import SendAuthenticationPin from "../events/handlers/sendAuthenticationPin";
 import MailgunNotificationChannel from "../adapters/notification/channels/mailgun";
 import { SendPin } from "../events/user";
+import UserVideoController from "../controllers/user/video";
+import { MongoVideo } from "../adapters/mongo/video";
 
 dotenv.config();
 
@@ -26,6 +28,7 @@ export default class App {
   protected readonly mailChannel =
     MailgunNotificationChannel.initializeFromEnv();
   protected readonly mongoAuthDB = new MongoAuthDB();
+  protected readonly authenticator = new JwtAuthenticator(this.mongoAuthDB);
 
   async startExpressWithRedisMongoDb() {
     await this.useRedisCache();
@@ -47,6 +50,7 @@ export default class App {
 
   private registerControllersRoutes(): App {
     this.express.use(this.makeAuthenticationController().registerRoutes());
+    this.express.use(this.makeUserVideoController().registerRoutes());
 
     return this;
   }
@@ -63,14 +67,20 @@ export default class App {
   }
 
   private makeAuthenticationController() {
-    const mongoAuthDB = new MongoAuthDB();
-
     return new AuthenticationController(
-      mongoAuthDB,
+      this.mongoAuthDB,
       new Encrypter(),
-      new JwtAuthenticator(mongoAuthDB),
+      this.authenticator,
       this.emitter,
       new PinRecord(this.cache)
+    );
+  }
+
+  private makeUserVideoController() {
+    return new UserVideoController(
+      new MongoVideo(),
+      this.emitter,
+      this.authenticator
     );
   }
 }
