@@ -1,4 +1,4 @@
-import { Request, RequestHandler, Response, Router } from "express";
+import { Express, Request, RequestHandler, Response, Router } from "express";
 import Encrypter from "../app/encrypter";
 import { StatusCodes } from "http-status-codes";
 import JwtAuthenticator, { UserFinder } from "../app/jwtAuthenticator";
@@ -35,18 +35,16 @@ export default class AuthenticationController {
     this.pin = pin;
   }
 
-  registerRoutes(): Router {
-    this.router.post("/authentication/login", this.login());
-    this.router.post("/authentication/pin/send", this.pinSend());
-    this.router.post("/authentication/pin/login", this.pinLogin());
+  registerRoutes(express: Express) {
+    express.post("/authentication/login", this.login());
+    express.post("/authentication/pin/send", this.pinSend());
+    express.post("/authentication/pin/login", this.pinLogin());
 
-    this.router.get(
+    express.get(
       "/authentication/show",
       this.authenticator.middleware(),
       this.show()
     );
-
-    return this.router;
   }
 
   private login(): RequestHandler {
@@ -78,7 +76,6 @@ export default class AuthenticationController {
             firstname: user.firstname,
             lastname: user.lastname,
             email: user.email,
-            schoolId: user.schoolId,
             type: user.type,
           },
           token,
@@ -147,7 +144,6 @@ export default class AuthenticationController {
             firstname: user.firstname,
             lastname: user.lastname,
             email: user.email,
-            schoolId: user.schoolId,
             type: user.type,
           },
           token,
@@ -173,11 +169,8 @@ export interface AuthenticationUser {
   fullName: string;
   firstname: string;
   lastname: string;
-  schoolId: string;
   email: string;
-  password: string;
-  faculty: string;
-  department: string;
+  password?: string;
   type: UserTypes;
 }
 

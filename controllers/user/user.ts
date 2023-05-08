@@ -1,4 +1,4 @@
-import { Request, RequestHandler, Response, Router } from "express";
+import { Express, Request, RequestHandler, Response, Router } from "express";
 import { UserDB, UserStoreParams } from "../../utilities/user";
 import Validator from "../../app/validator";
 import { StatusCodes } from "http-status-codes";
@@ -18,9 +18,8 @@ export class UserController {
     this.encrypter = encrypter;
     this.emitter = emitter;
   }
-  registerRoutes(): Router {
-    this.router.post("user/register", this.store());
-    return this.router;
+  registerRoutes(express: Express) {
+    express.post("/user/register", this.store());
   }
 
   private store(): RequestHandler {

@@ -1,4 +1,4 @@
-import { Request, RequestHandler, Response, Router } from "express";
+import { Express, Request, RequestHandler, Response, Router } from "express";
 import Validator from "../../app/validator";
 import { EventEmitter } from "../../app/event";
 import { StatusCodes } from "http-status-codes";
@@ -22,23 +22,22 @@ export default class UserVideoController {
     this.emitter = emitter;
     this.authenticator = authenticator;
   }
-  registerRoutes(): Router {
-    this.router.post(
+  registerRoutes(express: Express) {
+    express.post(
       "video/save",
       this.authenticator.middleware(UserTypes.USER),
       this.store()
     );
-    this.router.get(
+    express.get(
       "video/list",
       this.authenticator.middleware(UserTypes.USER),
       this.list()
     );
-    this.router.get(
+    express.get(
       "video/:id",
       this.authenticator.middleware(UserTypes.USER),
       this.show()
     );
-    return this.router;
   }
   private store(): RequestHandler {
     return async (

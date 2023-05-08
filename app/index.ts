@@ -15,6 +15,7 @@ import MailgunNotificationChannel from "../adapters/notification/channels/mailgu
 import { SendPin } from "../events/user";
 import UserVideoController from "../controllers/user/video";
 import { MongoVideo } from "../adapters/mongo/video";
+import { UserController } from "../controllers/user/user";
 
 dotenv.config();
 
@@ -37,20 +38,20 @@ export default class App {
     this.express.use(express.json());
     this.express.use(express.urlencoded({ extended: true }));
 
-    await this.mongoose.start();
+    this.mongoose.start();
 
     this.registerEventListeners();
     this.registerControllersRoutes();
 
     this.express.listen(PORT, () => {
-      console.log("app listening on:");
-      console.log(`http://localhost:${PORT}`);
+      console.log("app listening on:", `http://localhost:${PORT}`);
     });
   }
 
   private registerControllersRoutes(): App {
-    this.express.use(this.makeAuthenticationController().registerRoutes());
-    this.express.use(this.makeUserVideoController().registerRoutes());
+    this.makeAuthenticationController().registerRoutes(this.express);
+    this.makeUserController().registerRoutes(this.express);
+    this.makeUserVideoController().registerRoutes(this.express);
 
     return this;
   }
@@ -64,6 +65,10 @@ export default class App {
 
   private async useRedisCache() {
     this.cache = await RedisCache.initFromEnv();
+  }
+
+  private makeUserController() {
+    return new UserController(new MongoUser(), new Encrypter(), this.emitter);
   }
 
   private makeAuthenticationController() {
