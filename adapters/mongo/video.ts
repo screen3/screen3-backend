@@ -2,14 +2,17 @@ import {
   SimpleVideo,
   UserVideoDB,
   Video,
-  VideoInput,
   VideosListInput,
   VideosShowInput,
 } from "../../controllers/user/video";
 import VideoModel from "../../database/models/video";
 import { ERROR_NOT_FOUND } from "../../constants/errors";
+import {
+  UserVideoUploadDB,
+  VideoStoreInput,
+} from "../../controllers/user/videoUpload";
 
-export class MongoVideo implements UserVideoDB {
+export class MongoVideo implements UserVideoDB, UserVideoUploadDB {
   async findMyVideos(input: VideosListInput): Promise<SimpleVideo[]> {
     const query: Record<string, any> = {
       "tags.id": { $in: input.tags },
@@ -49,7 +52,7 @@ export class MongoVideo implements UserVideoDB {
     return doc.toVideo();
   }
 
-  async store(input: VideoInput): Promise<Video> {
+  async store(input: VideoStoreInput): Promise<Video> {
     input.url =
       input.url ??
       `https://media.thetavideoapi.com/${input.storageId}/master.m3u8`;

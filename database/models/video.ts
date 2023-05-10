@@ -1,5 +1,9 @@
 import { model, Schema, Types } from "mongoose";
-import { SimpleVideo, Video } from "../../controllers/user/video";
+import {
+  Collaborations,
+  SimpleVideo,
+  Video,
+} from "../../controllers/user/video";
 
 export interface VideoInterface {
   readonly id: string;
@@ -21,6 +25,7 @@ export interface VideoInterface {
     spaces: { id: Types.ObjectId; name: string }[];
     users: { id: Types.ObjectId; name: string }[];
     emails: string[];
+    guests: Collaborations;
   };
   toVideo(): Video;
   toSimpleVideo(): SimpleVideo;
@@ -86,6 +91,7 @@ const schema = new Schema<VideoInterface>(
               name: user.name,
             })),
             emails: this.collaborators.emails,
+            guests: this.collaborators.guests,
           },
         };
       },

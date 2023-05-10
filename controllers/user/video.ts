@@ -6,6 +6,7 @@ import { VideoStored } from "../../events/videos";
 import { VideoCategory } from "../../constants/video";
 import { AuthMiddleware } from "../../app/jwtAuthenticator";
 import { UserTypes } from "../../constants/user";
+import { UserVideoUploadDB } from "./videoUpload";
 
 export default class UserVideoController {
   private readonly router = Router();
@@ -24,17 +25,17 @@ export default class UserVideoController {
   }
   registerRoutes(express: Express) {
     express.post(
-      "video/save",
+      "/video/save",
       this.authenticator.middleware(UserTypes.USER),
       this.store()
     );
     express.get(
-      "video/list",
+      "/video/list",
       this.authenticator.middleware(UserTypes.USER),
       this.list()
     );
     express.get(
-      "video/:id",
+      "/video/:id",
       this.authenticator.middleware(UserTypes.USER),
       this.show()
     );
@@ -172,6 +173,7 @@ export interface Video {
     spaces: { id: string; name: string }[];
     users: { id: string; name: string }[];
     emails: string[];
+    guests: Collaborations;
   };
   createdAt: Date;
 }
@@ -188,26 +190,12 @@ export interface SimpleVideo {
   createdAt: Date;
 }
 
-export interface UserVideoDB {
-  store(input: VideoInput): Promise<Video>;
-
+export interface UserVideoDB extends UserVideoUploadDB {
   findVideosSharedWithMe(input: VideosListInput): Promise<SimpleVideo[]>;
 
   show(input: VideosShowInput): Promise<Video>;
 
   findMyVideos(input: VideosListInput): Promise<SimpleVideo[]>;
-}
-
-export interface VideoInput {
-  spaceId?: string;
-  title?: string;
-  bucket?: string;
-  storageId?: string;
-  description?: string;
-  url?: string;
-  videoThumbnailUrl?: string;
-  imageThumbnail?: { smallUrl: string; largeUrl: string };
-  tags: { id: string; title: string; color: string }[];
 }
 
 export interface VideosListInput {
@@ -227,3 +215,5 @@ export interface VideosShowInput {
     spaces?: string[];
   };
 }
+
+export type Collaborations = "comment" | "view" | "none";
