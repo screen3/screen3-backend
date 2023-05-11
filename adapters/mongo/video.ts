@@ -4,12 +4,13 @@ import {
   Video,
   VideosListInput,
   VideosShowInput,
+  VideoStoreInput,
 } from "../../controllers/user/video";
 import VideoModel from "../../database/models/video";
 import { ERROR_NOT_FOUND } from "../../constants/errors";
 import {
   UserVideoUploadDB,
-  VideoStoreInput,
+  VideoUpdateInput,
 } from "../../controllers/user/videoUpload";
 
 export class MongoVideo implements UserVideoDB, UserVideoUploadDB {
@@ -70,10 +71,23 @@ export class MongoVideo implements UserVideoDB, UserVideoUploadDB {
   }
 
   async store(input: VideoStoreInput): Promise<Video> {
-    input.url =
-      input.url ??
-      `https://media.thetavideoapi.com/${input.storageId}/master.m3u8`;
     const doc = await VideoModel.create(input);
+    return doc.toVideo();
+  }
+
+  async update(
+    query: { id: string; creator: string },
+    input: VideoUpdateInput
+  ): Promise<Video> {
+    const doc = await VideoModel.findOneAndUpdate(
+      {
+        _id: query.id,
+        "creator.id": query.creator,
+      },
+      input,
+      { new: true }
+    );
+    if (!doc) throw ERROR_NOT_FOUND;
     return doc.toVideo();
   }
 

@@ -95,9 +95,7 @@ export default class App {
     return new UserVideoUploadController(
       new MongoVideo(),
       this.emitter,
-      this.authenticator,
-      new VideoProcessor(),
-      ThetaUploader.initializeFromEnv()
+      this.authenticator
     );
   }
 }

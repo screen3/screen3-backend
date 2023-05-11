@@ -3,15 +3,20 @@ import multer from "multer";
 import Validator from "../../app/validator";
 import { EventEmitter } from "../../app/event";
 import { StatusCodes } from "http-status-codes";
-import { VideoStored } from "../../events/videos";
 import { AuthMiddleware } from "../../app/jwtAuthenticator";
 import { UserTypes } from "../../constants/user";
 import VideoProcessor from "../../utilities/videoProcessor";
 import ThetaUploader from "../../utilities/thetaUploader";
-import { unlink } from "fs";
-import { CollaboratorAccess, Video } from "./video";
+import { unlinkSync } from "fs";
+import { Video } from "./video";
 import { basePath } from "../../utilities/file";
 import { v4 as uuid } from "uuid";
+import { AwsStorage } from "../../utilities/awsStorage";
+import TranscriptionService from "../../utilities/transcriptionService";
+import { OPENAI_KEY } from "../../constants/app";
+import { TEMP_VIDEO_DIR_PATH } from "../../constants/filesystem";
+import { join } from "path";
+import TextSummarizer from "../../utilities/textSummarizer";
 
 const uploader = multer({
   storage: multer.diskStorage({
@@ -28,19 +33,29 @@ export default class UserVideoUploadController {
   private readonly emitter: EventEmitter;
   private readonly authenticator: AuthMiddleware;
   private readonly videoProcessor: VideoProcessor;
-  private readonly cloudStorage: ThetaUploader;
+  private readonly videoStorage: ThetaUploader;
+  private readonly fs: AwsStorage;
+  private readonly transcriber: TranscriptionService;
+  private summarizer: TextSummarizer;
+
   constructor(
     db: UserVideoUploadDB,
     emitter: EventEmitter,
     authenticator: AuthMiddleware,
-    videoProcessor: VideoProcessor,
-    uploader: ThetaUploader
+    videoProcessor: VideoProcessor = new VideoProcessor(TEMP_VIDEO_DIR_PATH),
+    uploader: ThetaUploader = ThetaUploader.initializeFromEnv(),
+    fs: AwsStorage = AwsStorage.initDo(TEMP_VIDEO_DIR_PATH),
+    transcription: TranscriptionService = new TranscriptionService(OPENAI_KEY),
+    summarizer: TextSummarizer = new TextSummarizer(OPENAI_KEY)
   ) {
     this.db = db;
     this.emitter = emitter;
     this.authenticator = authenticator;
     this.videoProcessor = videoProcessor;
-    this.cloudStorage = uploader;
+    this.videoStorage = uploader;
+    this.fs = fs;
+    this.transcriber = transcription;
+    this.summarizer = summarizer;
   }
   registerRoutes(express: Express) {
     express.post(
@@ -56,6 +71,7 @@ export default class UserVideoUploadController {
         any,
         any,
         {
+          id: string;
           spaceId?: string;
           title?: string;
           description?: string;
@@ -69,17 +85,8 @@ export default class UserVideoUploadController {
       try {
         await this.validator.validate(
           {
-            spaceId: this.validator.string(),
-            title: this.validator.string(),
-            description: this.validator.string(),
             video: this.validator.string().required(),
-            tags: this.validator.array().items(
-              this.validator.object().keys({
-                id: this.validator.string(),
-                title: this.validator.string(),
-                color: this.validator.string().regex(/^#[A-Fa-f0-9]{6}/),
-              })
-            ),
+            id: this.validator.string().required(),
           },
           body
         );
@@ -88,66 +95,139 @@ export default class UserVideoUploadController {
       }
 
       const path = basePath(body.video);
-      const thumbnailPath = await this.videoProcessor.getVideoThumbnail(path);
-      const { duration } = await this.videoProcessor.getMetadata(path);
-      const thumbnail = await this.cloudStorage.uploadAndTranscode(
-        thumbnailPath,
-        () => {
-          unlink(thumbnailPath, (err) => {
-            console.log(err);
-          });
-        }
-      );
-
-      const video = await this.cloudStorage.uploadAndTranscode(path, () => {
-        unlink(path, (err) => {
-          console.log(err);
+      this.videoProcessor
+        .getMetadata(path)
+        .then((data) => {
+          this.db.update(
+            { id: body.id, creator: res.locals.user.id },
+            { duration: data.duration as number }
+          );
+        })
+        .catch((e) => {
+          console.error(e);
         });
-      });
 
-      try {
-        const dbVideo = await this.db.store({
-          description: req.body.description,
-          storageId: video.id,
-          tags: [],
-          title: req.body.title,
-          url: video.playback_uri,
-          videoThumbnailUrl: thumbnail.playback_uri,
-          duration: duration as number,
-          creator: {
-            id: res.locals.user.id,
-            name: res.locals.user.fullName,
-          },
-          collaborators: {
-            guests: "view",
-          },
+      this.videoProcessor
+        .getImageThumbnail(path)
+        .then(async (path) => {
+          return {
+            url: await this.fs.uploadFile(path, "screen3"),
+            path: path,
+          };
+        })
+        .then(async (data) => {
+          await this.db.update(
+            { id: body.id, creator: res.locals.user.id },
+            { imageThumbnailUrl: data.url }
+          );
+          return data.path;
+        })
+        .then((path) => {
+          unlinkSync(join(TEMP_VIDEO_DIR_PATH, path));
+        })
+        .catch((e) => {
+          console.error(e);
         });
-        this.emitter.emit(new VideoStored(dbVideo));
-        return res.status(StatusCodes.CREATED).json(dbVideo);
-      } catch (e) {
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR);
-      }
+
+      this.videoProcessor
+        .extractAudio(path)
+        .then(async (path) => {
+          const _path = join(TEMP_VIDEO_DIR_PATH, path);
+          const transcript = await this.transcriber.transcribe(_path);
+          return {
+            text: transcript.text,
+            segments: transcript.segments,
+            path: _path,
+          };
+        })
+        .then(async (data) => {
+          return {
+            summary: await this.summarizer.generateSummary(data.text),
+            segments: data.segments,
+            path: data.path,
+          };
+        })
+        .then(async (data) => {
+          await this.db.update(
+            { id: body.id, creator: res.locals.user.id },
+            { summary: data.summary, transcription: data.segments }
+          );
+          return data.path;
+        })
+        .then((path) => {
+          unlinkSync(path);
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+
+      this.videoProcessor
+        .getVideoThumbnail(path)
+        .then(async (path) => {
+          return {
+            url: await this.fs.uploadFile(path, "screen3"),
+            path: join(TEMP_VIDEO_DIR_PATH, path),
+          };
+        })
+        .then(async (data) => {
+          await this.db.update(
+            { id: body.id, creator: res.locals.user.id },
+            { videoThumbnailUrl: data.url }
+          );
+          return data.path;
+        })
+        .then((path) => {
+          unlinkSync(path);
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+
+      this.videoStorage
+        .upload(path)
+        .then(async (id) => {
+          return { video: await this.videoStorage.transcode(id), path };
+        })
+        .then(async (data) => {
+          await this.db.update(
+            { id: body.id, creator: res.locals.user.id },
+            {
+              storageId: data.video.id,
+              url: data.video.playback_uri,
+            }
+          );
+
+          return data.path;
+        })
+        .then((path) => {
+          unlinkSync(path);
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+
+      return res.status(StatusCodes.ACCEPTED).json({ message: "processing" });
     };
   }
 }
 
-export interface UserVideoUploadDB {
-  store(input: VideoStoreInput): Promise<Video>;
-}
-
-export interface VideoStoreInput {
+export interface VideoUpdateInput {
   spaceId?: string;
   title?: string;
   bucket?: string;
   storageId?: string;
-  duration: number;
-  creator: { id: string; name: string };
+  duration?: number;
+  transcription?: any;
+  summary?: string;
   description?: string;
   url?: string;
   videoThumbnailUrl?: string;
-  imageThumbnail?: { smallUrl: string; largeUrl: string };
-  tags: { id: string; title: string; color: string }[];
-  collaborators: {
-    guests?: CollaboratorAccess;
-  };
+  imageThumbnailUrl?: string;
+}
+
+export interface UserVideoUploadDB {
+  update(
+    query: { id: string; creator: string },
+    input: VideoUpdateInput
+  ): Promise<Video>;
 }

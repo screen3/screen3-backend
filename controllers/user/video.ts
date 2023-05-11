@@ -1,4 +1,4 @@
-import { Express, Request, RequestHandler, Response, Router } from "express";
+import { Express, Request, RequestHandler, Response } from "express";
 import Validator from "../../app/validator";
 import { EventEmitter } from "../../app/event";
 import { StatusCodes } from "http-status-codes";
@@ -6,7 +6,6 @@ import { VideoStored } from "../../events/videos";
 import { VideoCategory } from "../../constants/video";
 import { AuthMiddleware } from "../../app/jwtAuthenticator";
 import { UserTypes } from "../../constants/user";
-import { UserVideoUploadDB } from "./videoUpload";
 import { ERROR_NOT_FOUND } from "../../constants/errors";
 
 export default class UserVideoController {
@@ -54,7 +53,7 @@ export default class UserVideoController {
           duration?: number;
           url?: string;
           videoThumbnailUrl?: string;
-          imageThumbnail?: { smallUrl: string; largeUrl: string };
+          imageThumbnailUrl?: string;
           tags: { id: string; title: string; color: string }[];
         }
       >,
@@ -72,10 +71,7 @@ export default class UserVideoController {
             duration: this.validator.string(),
             url: this.validator.string().uri(),
             videoThumbnailUrl: this.validator.string().uri(),
-            imageThumbnail: this.validator.object().keys({
-              smallUrl: this.validator.string().uri(),
-              largeUrl: this.validator.string().uri(),
-            }),
+            imageThumbnailUrl: this.validator.string().uri(),
             tags: this.validator.array().items(
               this.validator.object().keys({
                 id: this.validator.string(),
@@ -182,10 +178,17 @@ export interface Video {
   commentsCount: number;
   tags: { id: string; title: string; color: string }[];
   duration: number;
-  imageThumbnail?: { smallUrl: string; largeUrl: string };
+  imageThumbnailUrl?: string;
   url?: string;
   videoThumbnailUrl?: string;
   summary?: string;
+  transcription?: {
+    id: number;
+    seek: number;
+    start: number;
+    end: number;
+    text: string;
+  }[];
   collaborators: {
     spaces: { id: string; name: string; access: CollaboratorAccess }[];
     users: { id: string; name: string; access: CollaboratorAccess }[];
@@ -202,17 +205,37 @@ export interface SimpleVideo {
   storageId?: string;
   description?: string;
   videoThumbnailUrl?: string;
+  imageThumbnailUrl?: string;
   url?: string;
   duration?: number;
   createdAt: Date;
 }
 
-export interface UserVideoDB extends UserVideoUploadDB {
+export interface UserVideoDB {
+  store(input: VideoStoreInput): Promise<Video>;
+
   findVideosSharedWithMe(input: VideosListInput): Promise<SimpleVideo[]>;
 
   show(input: VideosShowInput): Promise<Video>;
 
   findMyVideos(input: VideosListInput): Promise<SimpleVideo[]>;
+}
+
+export interface VideoStoreInput {
+  spaceId?: string;
+  title?: string;
+  bucket?: string;
+  storageId?: string;
+  duration?: number;
+  creator: { id: string; name: string };
+  description?: string;
+  url?: string;
+  videoThumbnailUrl?: string;
+  imageThumbnail?: { smallUrl: string; largeUrl: string };
+  tags: { id: string; title: string; color: string }[];
+  collaborators: {
+    guests?: CollaboratorAccess;
+  };
 }
 
 export interface VideosListInput {

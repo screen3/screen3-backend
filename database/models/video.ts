@@ -4,7 +4,6 @@ import {
   SimpleVideo,
   Video,
 } from "../../controllers/user/video";
-import user from "./user";
 
 export interface VideoInterface {
   readonly id: string;
@@ -15,10 +14,17 @@ export interface VideoInterface {
   storageId?: string;
   title?: string;
   description?: string;
+  transcription?: {
+    id: number;
+    seek: number;
+    start: number;
+    end: number;
+    text: string;
+  }[];
   commentsCount: number;
   tags: { id: Types.ObjectId; title: string; color: string }[];
   duration: number;
-  imageThumbnail?: { smallUrl: string; largeUrl: string };
+  imageThumbnailUrl?: string;
   url?: string;
   videoThumbnailUrl?: string;
   summary?: string;
@@ -43,9 +49,12 @@ const schema = new Schema<VideoInterface>(
     commentsCount: Number,
     tags: [{ id: Types.ObjectId, title: String, color: String }],
     duration: Number,
-    imageThumbnail: { smallUrl: String, largeUrl: String },
+    imageThumbnailUrl: String,
     url: String,
     videoThumbnailUrl: String,
+    transcription: [
+      { id: Number, seek: Number, start: Number, end: Number, text: String },
+    ],
     summary: String,
     collaborators: {
       spaces: [
@@ -94,15 +103,11 @@ const schema = new Schema<VideoInterface>(
             color: tag.color,
           })),
           duration: this.duration,
-          imageThumbnail: this.imageThumbnail
-            ? {
-                smallUrl: this.imageThumbnail.smallUrl,
-                largeUrl: this.imageThumbnail.largeUrl,
-              }
-            : undefined,
+          imageThumbnailUrl: this.imageThumbnailUrl,
           url: this.url,
           videoThumbnailUrl: this.videoThumbnailUrl,
           summary: this.summary,
+          transcription: this.transcription,
           collaborators: {
             spaces: this.collaborators.spaces.map((space) => ({
               id: space.id.toString(),
@@ -129,6 +134,7 @@ const schema = new Schema<VideoInterface>(
           title: this.title,
           url: this.url,
           videoThumbnailUrl: this.videoThumbnailUrl,
+          imageThumbnailUrl: this.imageThumbnailUrl,
           duration: this.duration,
         };
       },
