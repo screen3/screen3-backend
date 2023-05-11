@@ -15,37 +15,54 @@ import {
 export class MongoVideo implements UserVideoDB, UserVideoUploadDB {
   async findMyVideos(input: VideosListInput): Promise<SimpleVideo[]> {
     const query: Record<string, any> = {
-      "tags.id": { $in: input.tags },
-      creator: input.creator,
-      $or: {},
+      "creator.id": input.creator,
     };
-    query.date = this.dateQuery(input.date);
+    if (input.tags) query["tags.id"] = { $in: input.tags };
+    if (input.date) query.date = this.dateQuery(input.date);
 
     return await this.find(query);
   }
 
   async findVideosSharedWithMe(input: VideosListInput): Promise<SimpleVideo[]> {
     const query: Record<string, any> = {
-      "tags.id": { $in: input.tags },
-      creator: { $ne: input.creator },
+      "creator.id": { $ne: input.creator },
+      $or: [],
     };
-    query.date = this.dateQuery(input.date);
 
-    if (input.users) query.$or["users.id"] = { $in: input.users };
-    if (input.spaces) query.$or["spaces.id"] = { $in: input.spaces };
-    if (input.email) query.$or.emails = { $in: input.email };
+    if (input.tags) query["tags.id"] = { $in: input.tags };
+    if (input.date) query.date = this.dateQuery(input.date);
+    if (input?.users) query.$or.push({ "users.id": { $in: input.users } });
+    if (input?.spaces) query.$or.push({ "spaces.id": { $in: input.spaces } });
+    if (input?.emails)
+      query.$or.push({ "emails.email": { $in: input.emails } });
 
     return await this.find(query);
   }
 
   async show(input: VideosShowInput): Promise<Video> {
     const access = input.access;
-    const query: Record<string, any> = { $or: {}, _id: input.id };
+    const query: Record<string, any> = { $or: [], _id: input.id };
 
-    if (access?.creator) query.$or["creator"] = access.creator;
-    if (access?.users) query.$or["users.id"] = { $in: access.users };
-    if (access?.spaces) query.$or["spaces.id"] = { $in: access.spaces };
-    if (access?.email) query.$or.emails = { $in: access.email };
+    if (access?.creator)
+      query.$or.push({
+        "creator.id": {
+          $in: access.creator,
+        },
+      });
+    if (access?.users)
+      query.$or.push({
+        "users.id": {
+          $in: access.users,
+        },
+      });
+    if (access?.spaces)
+      query.$or.push({
+        "spaces.id": {
+          $in: access.spaces,
+        },
+      });
+    if (access?.emails)
+      query.$or.push({ "emails.email": { $in: access.emails } });
 
     const doc = await VideoModel.findOne(query);
     if (!doc) throw ERROR_NOT_FOUND;

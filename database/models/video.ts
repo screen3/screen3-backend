@@ -1,15 +1,16 @@
 import { model, Schema, Types } from "mongoose";
 import {
-  Collaborations,
+  CollaboratorAccess,
   SimpleVideo,
   Video,
 } from "../../controllers/user/video";
+import user from "./user";
 
 export interface VideoInterface {
   readonly id: string;
   readonly createdAt: Date;
   spaceId?: string;
-  creatorId: string;
+  creator: { id: Types.ObjectId; name: string };
   bucket?: string;
   storageId?: string;
   title?: string;
@@ -22,10 +23,10 @@ export interface VideoInterface {
   videoThumbnailUrl?: string;
   summary?: string;
   collaborators: {
-    spaces: { id: Types.ObjectId; name: string }[];
-    users: { id: Types.ObjectId; name: string }[];
-    emails: string[];
-    guests: Collaborations;
+    spaces: { id: Types.ObjectId; name: string; access: CollaboratorAccess }[];
+    users: { id: Types.ObjectId; name: string; access: CollaboratorAccess }[];
+    emails: { email: string; access: CollaboratorAccess }[];
+    guests: CollaboratorAccess;
   };
   toVideo(): Video;
   toSimpleVideo(): SimpleVideo;
@@ -34,7 +35,7 @@ export interface VideoInterface {
 const schema = new Schema<VideoInterface>(
   {
     spaceId: String,
-    creatorId: String,
+    creator: { id: Types.ObjectId, name: String },
     bucket: String,
     storageId: String,
     title: String,
@@ -47,9 +48,27 @@ const schema = new Schema<VideoInterface>(
     videoThumbnailUrl: String,
     summary: String,
     collaborators: {
-      spaces: [{ id: Types.ObjectId, name: String }],
-      users: [{ id: Types.ObjectId, name: String }],
-      emails: [String],
+      spaces: [
+        {
+          id: Types.ObjectId,
+          name: String,
+          access: { type: String, enum: ["comment", "view", "none"] },
+        },
+      ],
+      users: [
+        {
+          id: Types.ObjectId,
+          name: String,
+          access: { type: String, enum: ["comment", "view", "none"] },
+        },
+      ],
+      emails: [
+        {
+          email: String,
+          access: { type: String, enum: ["comment", "view", "none"] },
+        },
+      ],
+      guests: { type: String, enum: ["comment", "view", "none"] },
     },
   },
   {
@@ -60,7 +79,10 @@ const schema = new Schema<VideoInterface>(
           id: this._id.toString(),
           createdAt: this.createdAt,
           spaceId: this.spaceId,
-          creatorId: this.creatorId,
+          creator: {
+            id: this.creator?.id?.toString(),
+            name: this.creator.name,
+          },
           bucket: this.bucket,
           storageId: this.storageId,
           title: this.title,
@@ -85,10 +107,12 @@ const schema = new Schema<VideoInterface>(
             spaces: this.collaborators.spaces.map((space) => ({
               id: space.id.toString(),
               name: space.name,
+              access: space.access,
             })),
             users: this.collaborators.users.map((user) => ({
               id: user.id.toString(),
               name: user.name,
+              access: user.access,
             })),
             emails: this.collaborators.emails,
             guests: this.collaborators.guests,

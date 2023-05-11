@@ -9,7 +9,7 @@ import { UserTypes } from "../../constants/user";
 import VideoProcessor from "../../utilities/videoProcessor";
 import ThetaUploader from "../../utilities/thetaUploader";
 import { unlink } from "fs";
-import { Video } from "./video";
+import { CollaboratorAccess, Video } from "./video";
 import { basePath } from "../../utilities/file";
 import { v4 as uuid } from "uuid";
 
@@ -87,9 +87,9 @@ export default class UserVideoUploadController {
         return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json(e);
       }
 
-      console.log(body.video);
       const path = basePath(body.video);
       const thumbnailPath = await this.videoProcessor.getVideoThumbnail(path);
+      const { duration } = await this.videoProcessor.getMetadata(path);
       const thumbnail = await this.cloudStorage.uploadAndTranscode(
         thumbnailPath,
         () => {
@@ -113,6 +113,14 @@ export default class UserVideoUploadController {
           title: req.body.title,
           url: video.playback_uri,
           videoThumbnailUrl: thumbnail.playback_uri,
+          duration: duration as number,
+          creator: {
+            id: res.locals.user.id,
+            name: res.locals.user.fullName,
+          },
+          collaborators: {
+            guests: "view",
+          },
         });
         this.emitter.emit(new VideoStored(dbVideo));
         return res.status(StatusCodes.CREATED).json(dbVideo);
@@ -132,9 +140,14 @@ export interface VideoStoreInput {
   title?: string;
   bucket?: string;
   storageId?: string;
+  duration: number;
+  creator: { id: string; name: string };
   description?: string;
   url?: string;
   videoThumbnailUrl?: string;
   imageThumbnail?: { smallUrl: string; largeUrl: string };
   tags: { id: string; title: string; color: string }[];
+  collaborators: {
+    guests?: CollaboratorAccess;
+  };
 }

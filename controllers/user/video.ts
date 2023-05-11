@@ -7,9 +7,9 @@ import { VideoCategory } from "../../constants/video";
 import { AuthMiddleware } from "../../app/jwtAuthenticator";
 import { UserTypes } from "../../constants/user";
 import { UserVideoUploadDB } from "./videoUpload";
+import { ERROR_NOT_FOUND } from "../../constants/errors";
 
 export default class UserVideoController {
-  private readonly router = Router();
   private readonly validator = new Validator();
   private readonly db: UserVideoDB;
   private readonly emitter: EventEmitter;
@@ -51,7 +51,7 @@ export default class UserVideoController {
           bucket?: string;
           storageId?: string;
           description?: string;
-          duration?: string;
+          duration?: number;
           url?: string;
           videoThumbnailUrl?: string;
           imageThumbnail?: { smallUrl: string; largeUrl: string };
@@ -91,7 +91,17 @@ export default class UserVideoController {
       }
 
       try {
-        const video = await this.db.store(body);
+        const video = await this.db.store({
+          ...body,
+          duration: body.duration as number,
+          creator: {
+            id: res.locals.user.id,
+            name: res.locals.user.fullName,
+          },
+          collaborators: {
+            guests: "view",
+          },
+        });
         this.emitter.emit(new VideoStored(video));
         return res.status(StatusCodes.CREATED).json(video);
       } catch (e) {
@@ -122,7 +132,7 @@ export default class UserVideoController {
       let videos;
       if (query?.category === VideoCategory.SHARED) {
         input.users = [res.locals.user.id];
-        input.email = [res.locals.user.email];
+        input.emails = [res.locals.user.email];
         input.spaces = res.locals.user.spaces?.map(
           (space: { id: string }) => space.id
         );
@@ -137,19 +147,26 @@ export default class UserVideoController {
   }
   private show(): RequestHandler {
     return async (req: Request<{ id?: string }>, res: Response) => {
-      const video = await this.db.show({
-        id: req.params.id as string,
-        access: {
-          creator: [res.locals.user.id],
-          users: [res.locals.user.id],
-          email: [res.locals.user.email],
-          spaces: res.locals.user.spaces?.map(
-            (space: { id: string }) => space.id
-          ),
-        },
-      });
-
-      return res.json(video);
+      try {
+        const video = await this.db.show({
+          id: req.params.id as string,
+          access: {
+            creator: [res.locals.user.id],
+            users: [res.locals.user.id],
+            emails: [res.locals.user.email],
+            spaces: res.locals.user.spaces?.map(
+              (space: { id: string }) => space.id
+            ),
+          },
+        });
+        return res.json(video);
+      } catch (e) {
+        console.log(e);
+        if (e === ERROR_NOT_FOUND) {
+          return res.status(StatusCodes.NOT_FOUND);
+        }
+        return res.status(StatusCodes.INTERNAL_SERVER_ERROR);
+      }
     };
   }
 }
@@ -157,7 +174,7 @@ export default class UserVideoController {
 export interface Video {
   id?: string;
   spaceId?: string;
-  creatorId: string;
+  creator: { id: string; name: string };
   bucket?: string;
   storageId?: string;
   title?: string;
@@ -170,10 +187,10 @@ export interface Video {
   videoThumbnailUrl?: string;
   summary?: string;
   collaborators: {
-    spaces: { id: string; name: string }[];
-    users: { id: string; name: string }[];
-    emails: string[];
-    guests: Collaborations;
+    spaces: { id: string; name: string; access: CollaboratorAccess }[];
+    users: { id: string; name: string; access: CollaboratorAccess }[];
+    emails: { email: string; access: CollaboratorAccess }[];
+    guests: CollaboratorAccess;
   };
   createdAt: Date;
 }
@@ -201,7 +218,7 @@ export interface UserVideoDB extends UserVideoUploadDB {
 export interface VideosListInput {
   users?: string[];
   creator: string;
-  email?: string[];
+  emails?: string[];
   spaces?: string[];
   date?: { start: string; end: string };
   tags?: string[];
@@ -211,9 +228,9 @@ export interface VideosShowInput {
   access?: {
     users?: string[];
     creator?: string[];
-    email?: string[];
+    emails?: string[];
     spaces?: string[];
   };
 }
 
-export type Collaborations = "comment" | "view" | "none";
+export type CollaboratorAccess = "comment" | "view" | "none";
