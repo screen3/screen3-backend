@@ -8,7 +8,7 @@ export default class MongoAuthDB implements UserFinder, AuthDb {
     identifier: string;
   }): Promise<AuthenticationUser> {
     const user = await User.findOne<UserInterface>({
-      $or: [{ email: query.identifier }, { schoolId: query.identifier }],
+      email: query.identifier
     });
     if (!user) throw ERROR_NOT_FOUND;
     return user.toUser();
