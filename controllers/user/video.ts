@@ -7,6 +7,7 @@ import { VideoCategory } from "../../constants/video";
 import { AuthMiddleware } from "../../app/jwtAuthenticator";
 import { UserTypes } from "../../constants/user";
 import { ERROR_NOT_FOUND } from "../../constants/errors";
+import { VideoUpdateInput } from "./videoUpload";
 
 export default class UserVideoController {
   private readonly validator = new Validator();
@@ -100,6 +101,62 @@ export default class UserVideoController {
         });
         this.emitter.emit(new VideoStored(video));
         return res.status(StatusCodes.CREATED).json(video);
+      } catch (e) {
+        return res.status(StatusCodes.INTERNAL_SERVER_ERROR);
+      }
+    };
+  }
+  private update(): RequestHandler {
+    return async (
+      req: Request<
+        any,
+        any,
+        {
+          spaceId?: string;
+          title?: string;
+          bucket?: string;
+          storageId?: string;
+          description?: string;
+          duration?: number;
+          url?: string;
+          videoThumbnailUrl?: string;
+          imageThumbnailUrl?: string;
+          tags: { id: string; title: string; color: string }[];
+        }
+      >,
+      res: Response
+    ) => {
+      const body = req.body;
+      try {
+        await this.validator.validate(
+          {
+            spaceId: this.validator.string(),
+            title: this.validator.string(),
+            bucket: this.validator.string(),
+            storageId: this.validator.string(),
+            description: this.validator.string(),
+            duration: this.validator.string(),
+            url: this.validator.string().uri(),
+            videoThumbnailUrl: this.validator.string().uri(),
+            imageThumbnailUrl: this.validator.string().uri(),
+            tags: this.validator.array().items(
+              this.validator.object().keys({
+                id: this.validator.string(),
+                title: this.validator.string(),
+                color: this.validator.string().regex(/^#[A-Fa-f0-9]{6}/),
+              })
+            ),
+          },
+          body
+        );
+      } catch (e) {
+        return res.status(StatusCodes.UNPROCESSABLE_ENTITY).json(e);
+      }
+
+      try {
+        const video = await this.db.update({ id: req.params.id, creator: res.locals.user.id }, body);
+        // this.emitter.emit(new VideoStored(video));
+        return res.status(StatusCodes.OK).json(video);
       } catch (e) {
         return res.status(StatusCodes.INTERNAL_SERVER_ERROR);
       }
@@ -219,6 +276,11 @@ export interface UserVideoDB {
   show(input: VideosShowInput): Promise<Video>;
 
   findMyVideos(input: VideosListInput): Promise<SimpleVideo[]>;
+
+  update(
+    query: { id: string; creator: string },
+    input: VideoUpdateInput
+  ): Promise<Video>;
 }
 
 export interface VideoStoreInput {
