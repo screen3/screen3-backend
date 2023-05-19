@@ -7,7 +7,7 @@ import {
 } from "../constants/filesystem";
 import { join } from "path";
 
-export class AwsStorage {
+export default class AwsStorage {
   private readonly spacesEndpoint: AWS.Endpoint;
   private readonly s3: AWS.S3;
   private readonly inputDir: string;

@@ -11,7 +11,7 @@ import { unlinkSync } from "fs";
 import { Video } from "./video";
 import { basePath } from "../../utilities/file";
 import { v4 as uuid } from "uuid";
-import { AwsStorage } from "../../utilities/awsStorage";
+import AwsStorage from "../../utilities/awsStorage";
 import TranscriptionService from "../../utilities/transcriptionService";
 import { OPENAI_KEY } from "../../constants/app";
 import { TEMP_VIDEO_DIR_PATH } from "../../constants/filesystem";
@@ -217,7 +217,13 @@ export interface VideoUpdateInput {
   bucket?: string;
   storageId?: string;
   duration?: number;
-  transcription?: any;
+  transcription?: {
+    id: number;
+    seek: number;
+    start: number;
+    end: number;
+    text: string;
+  }[];
   summary?: string;
   description?: string;
   url?: string;

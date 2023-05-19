@@ -8,6 +8,7 @@ export interface UserInterface {
   lastname: string;
   readonly fullName: string;
   email: string;
+  googleAccountId: string;
   password?: string;
   type: UserTypes;
   toUser(): UserData;
@@ -19,6 +20,7 @@ const schema = new Schema<UserInterface>(
     lastname: { type: String, sparse: true },
     email: { type: String, unique: true, sparse: true },
     password: String,
+    googleAccountId: String,
     type: { type: String, enum: USER_TYPES_ARRAY },
   },
   {

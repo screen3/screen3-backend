@@ -29,4 +29,6 @@ export interface UserStoreParams {
 
 export interface UserDB {
   store(input: UserStoreParams): Promise<UserData>;
+
+  find(id: string, provider?: string): Promise<UserData>;
 }

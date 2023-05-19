@@ -20,6 +20,7 @@ export class UserController {
   }
   registerRoutes(express: Express) {
     express.post("/user/register", this.store());
+    express.get("/user/:id", this.show());
   }
 
   private store(): RequestHandler {
@@ -59,5 +60,18 @@ export class UserController {
         return res.status(StatusCodes.INTERNAL_SERVER_ERROR);
       }
     };
+  }
+
+  private show() {
+    return async (req: Request<any, any, any, {provider?: string}>, res: Response) => {
+      try {
+        const user = await this.db.find(req.params.id, req.query?.provider)
+        console.log(user);
+        return res.status(StatusCodes.OK).json(user)
+      } catch (e) {
+        console.log(e);
+        return res.status(StatusCodes.NOT_FOUND).json(e)
+      }
+    }
   }
 }
