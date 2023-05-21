@@ -29,7 +29,7 @@ export default class UserVideoController {
       this.authenticator.middleware(UserTypes.USER),
       this.store()
     );
-    express.put(
+    express.patch(
       "/video/:id",
       this.authenticator.middleware(UserTypes.USER),
       this.update()
