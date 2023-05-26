@@ -12,11 +12,7 @@ export default class ThetaUploader {
     this.options = options;
   }
 
-  async upload(path: string, onfulfilled?: () => void): Promise<string> {
-    if (process.env.NODE_ENV !== "production") {
-      return "video_naikps4fmw9zx40yyr2bpbkhpz";
-    }
-
+  async upload(path: string): Promise<string> {
     const response = await axios.request({
       url: "https://api.thetavideoapi.com/upload",
       method: "POST",
@@ -41,14 +37,6 @@ export default class ThetaUploader {
     return upload.id;
   }
   async transcode(id: string) {
-    if (process.env.NODE_ENV !== "production") {
-      return {
-        id: "video_naikps4fmw9zx40yyr2bpbkhpz",
-        playback_uri:
-          "https://media.thetavideoapi.com/video_naikps4fmw9zx40yyr2bpbkhpz/master.m3u8",
-        progress: 100,
-      };
-    }
     const response = await axios.request({
       method: "POST",
       url: "https://api.thetavideoapi.com/video",
@@ -68,15 +56,6 @@ export default class ThetaUploader {
   async get(
     id: string
   ): Promise<{ playback_uri: string; id: string; progress: number }> {
-    if (process.env.NODE_ENV !== "production") {
-      return {
-        id: "video_naikps4fmw9zx40yyr2bpbkhpz",
-        playback_uri:
-          "https://media.thetavideoapi.com/video_naikps4fmw9zx40yyr2bpbkhpz/master.m3u8",
-        progress: 100,
-      };
-    }
-
     const response = await axios.request({
       url: `https://api.thetavideoapi.com/video/${id}`,
       method: "GET",
