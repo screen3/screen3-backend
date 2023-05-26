@@ -8,20 +8,24 @@ import { AuthMiddleware } from "../../app/jwtAuthenticator";
 import { UserTypes } from "../../constants/user";
 import { ERROR_NOT_FOUND } from "../../constants/errors";
 import { VideoUpdateInput } from "./videoUpload";
+import ThetaUploader from "../../utilities/thetaUploader";
 
 export default class UserVideoController {
   private readonly validator = new Validator();
   private readonly db: UserVideoDB;
   private readonly emitter: EventEmitter;
-  private authenticator: AuthMiddleware;
+  private readonly authenticator: AuthMiddleware;
+  private readonly uploader: ThetaUploader;
   constructor(
     db: UserVideoDB,
     emitter: EventEmitter,
-    authenticator: AuthMiddleware
+    authenticator: AuthMiddleware,
+    uploader: ThetaUploader = ThetaUploader.initializeFromEnv()
   ) {
     this.db = db;
     this.emitter = emitter;
     this.authenticator = authenticator;
+    this.uploader = uploader;
   }
   registerRoutes(express: Express) {
     express.post(
@@ -159,7 +163,10 @@ export default class UserVideoController {
       }
 
       try {
-        const video = await this.db.update({ id: req.params.id, creator: res.locals.user.id }, body);
+        const video = await this.db.update(
+          { id: req.params.id, creator: res.locals.user.id },
+          body
+        );
         // this.emitter.emit(new VideoStored(video));
         return res.status(StatusCodes.OK).json(video);
       } catch (e) {
@@ -206,7 +213,7 @@ export default class UserVideoController {
   private show(): RequestHandler {
     return async (req: Request<{ id?: string }>, res: Response) => {
       try {
-        const video = await this.db.show({
+        let video = await this.db.show({
           id: req.params.id as string,
           access: {
             creator: [res.locals.user.id],
@@ -217,6 +224,14 @@ export default class UserVideoController {
             ),
           },
         });
+        if (video.storageId && !video.url) {
+          const upload = await this.uploader.get(video.storageId);
+          if (upload.playback_uri)
+            video = await this.db.update(
+              { id: video.id ?? "", creator: video.creator.id },
+              { url: upload.playback_uri }
+            );
+        }
         return res.json(video);
       } catch (e) {
         console.log(e);
