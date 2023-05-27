@@ -59,6 +59,7 @@ export default class UserVideoController {
           title?: string;
           bucket?: string;
           storageId?: string;
+          nftCollection?: string;
           description?: string;
           duration?: number;
           url?: string;
@@ -79,6 +80,7 @@ export default class UserVideoController {
             storageId: this.validator.string().required(),
             description: this.validator.string(),
             duration: this.validator.string(),
+            nftCollection: this.validator.string(),
             url: this.validator.string().uri(),
             videoThumbnailUrl: this.validator.string().uri(),
             imageThumbnailUrl: this.validator.string().uri(),
@@ -250,6 +252,7 @@ export interface Video {
   creator: { id: string; name: string };
   bucket?: string;
   storageId?: string;
+  nftCollection?: string;
   title?: string;
   description?: string;
   commentsCount: number;
@@ -284,6 +287,7 @@ export interface SimpleVideo {
   videoThumbnailUrl?: string;
   imageThumbnailUrl?: string;
   url?: string;
+  nftCollection?: string;
   duration?: number;
   createdAt: Date;
 }
@@ -308,6 +312,7 @@ export interface VideoStoreInput {
   title?: string;
   bucket?: string;
   storageId?: string;
+  nftCollection?: string;
   duration?: number;
   creator: { id: string; name: string };
   description?: string;

@@ -14,6 +14,7 @@ export interface VideoInterface {
   storageId?: string;
   title?: string;
   description?: string;
+  nftCollection?: string;
   transcription?: {
     id: number;
     seek: number;
@@ -46,6 +47,7 @@ const schema = new Schema<VideoInterface>(
     storageId: String,
     title: String,
     description: String,
+    nftCollection: String,
     commentsCount: Number,
     tags: [{ id: Types.ObjectId, title: String, color: String }],
     duration: Number,
@@ -96,6 +98,7 @@ const schema = new Schema<VideoInterface>(
           storageId: this.storageId,
           title: this.title,
           description: this.description,
+          nftCollection: this.nftCollection,
           commentsCount: this.commentsCount,
           tags: this.tags.map((tag) => ({
             id: tag.id.toString(),
@@ -136,6 +139,7 @@ const schema = new Schema<VideoInterface>(
           videoThumbnailUrl: this.videoThumbnailUrl,
           imageThumbnailUrl: this.imageThumbnailUrl,
           duration: this.duration,
+          nftCollection: this.nftCollection,
         };
       },
     },
