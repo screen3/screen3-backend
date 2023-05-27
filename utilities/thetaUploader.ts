@@ -30,6 +30,7 @@ export default class ThetaUploader {
       headers: {
         "x-tva-sa-id": this.options.id,
         "x-tva-sa-secret": this.options.secret,
+        "Content-Type": "application/octet-stream",
       },
       data: createReadStream(path),
     });
