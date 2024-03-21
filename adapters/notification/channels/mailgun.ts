@@ -18,12 +18,14 @@ export default class MailgunNotificationChannel
   protected readonly options: MailgunChannelOptions;
   protected readonly client: Client;
 
-  constructor(options: MailgunChannelOptions) {
+  constructor(options: MailgunChannelOptions, client?: Client) {
     this.options = options;
-    this.client = new Mailgun(FormData).client({
-      username: "api",
-      key: this.options.apiKey,
-    });
+    this.client =
+      client ??
+      new Mailgun(FormData).client({
+        username: "api",
+        key: this.options.apiKey,
+      });
   }
 
   async send(notifiable: MailNotifiable, message: MailgunData): Promise<void> {
